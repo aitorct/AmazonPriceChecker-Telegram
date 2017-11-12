@@ -1,5 +1,6 @@
 import logging
-import json, time
+import json
+import time
 from tinydb import TinyDB, Query, where
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Bot
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ConversationHandler
@@ -11,6 +12,7 @@ import threading
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 def start(bot, update):
     keyboard = [[InlineKeyboardButton("Add product 🎁", callback_data='1'),
@@ -43,7 +45,8 @@ def add(bot, update, args):
         chat_id = update.message.chat_id
         newItem = classes.item(chat_id, args[0])
         addToDB(newItem)
-        logging.info("{} {}".format(amazon.getName(args[0]).strip(), amazon.checkPrice(args[0])))
+        logging.info("{} {}".format(amazon.getName(
+            args[0]).strip(), amazon.checkPrice(args[0])))
         bot.send_message(chat_id, text="Product '{}' added! Actual price is {}€".format(
             amazon.getName(args[0]).strip(), amazon.checkPrice(args[0])))
     else:
@@ -59,9 +62,9 @@ def setPrice(bot, update, args):
     table = db.table('items')
     url = args[0]
     newPrice = args[1]
-    logging.info("{} {}".format(url, newPrice))
-    db.update({'price': newPrice}, ('item' == amazon.getName(url))
-              & ('user' == update.message.chat_id))
+    item = db.get((where('item') == url) & (where('user') == update.message.chat_id))
+    logging.info("{} {} {} - {}".format(url, newPrice, update.message.chat_id, item))
+    db.update({'price': newPrice}, doc_ids=[item.doc_id])
     logging.info("DONE")
 
     return
@@ -106,16 +109,11 @@ def main():
     updater.start_polling()
 
     t1 = threading.Thread(target=checkItems, args=(bot, updater))
+    t2 = threading.Thread(target=updater.idle)    
     t1.start()
-    t2 = threading.Thread(target=updater.idle)
     t2.start()
-    
-
-
-def jdefault(o):
-    if isinstance(o, set):
-        return list(o)
-    return o.__dict__
+    t1.join()
+    t2.join()
 
 
 def sendMessage(bot, update, user, url, price):
@@ -139,8 +137,7 @@ def checkItems(bot, update):
                     logging.info("Sending message...")
                     sendMessage(
                         bot, update, item["user"], item["item"], updatedPrice)
-                    table.remove((where('item') == item["item"]) & (
-                        where('user') == item["user"]) & (where('price') == item["price"]))
+                    table.remove((where('item') == item["item"]) & (where('user') == item["user"]) & (where('price')==item["price"]))
         time.sleep(10)
 
 
