@@ -1,11 +1,12 @@
 import logging
 import json, time
 from tinydb import TinyDB, Query, where
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Bot
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ConversationHandler
 import telegram as telegram
 import amazon
 import classes
+import threading
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -84,7 +85,7 @@ def error(bot, update, error):
 
 def main():
     updater = Updater("KEY")
-    bot = telegram.Bot(token='KEY')
+    bot = Bot("KEY")
 
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
@@ -100,12 +101,15 @@ def main():
     updater.dispatcher.add_handler(CommandHandler(
         'setPrice', setPrice, pass_args=True))
     updater.dispatcher.add_error_handler(error)
-
-    t1 = threading.Thread(target=checkItems, args=[bot, updater])
-    t1.start()
-
     updater.start_polling()
-    updater.idle()
+
+    t1 = threading.Thread(target=checkItems, args=(bot, updater))
+    t1.start()
+    t2 = threading.Thread(target=updater.idle)
+    t2.start()
+    t1.join()
+    t2.join()
+    
 
 
 def jdefault(o):
