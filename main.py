@@ -1,6 +1,5 @@
 import logging
 import json, time
-import threading
 from tinydb import TinyDB, Query, where
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ConversationHandler
@@ -11,7 +10,6 @@ import classes
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 def start(bot, update):
     keyboard = [[InlineKeyboardButton("Add product 🎁", callback_data='1'),
@@ -44,6 +42,7 @@ def add(bot, update, args):
         chat_id = update.message.chat_id
         newItem = classes.item(chat_id, args[0])
         addToDB(newItem)
+        logging.info("{} {}".format(amazon.getName(args[0]).strip(), amazon.checkPrice(args[0])))
         bot.send_message(chat_id, text="Product '{}' added! Actual price is {}€".format(
             amazon.getName(args[0]).strip(), amazon.checkPrice(args[0])))
     else:
@@ -55,6 +54,13 @@ def add(bot, update, args):
 def setPrice(bot, update, args):
     query = update.callback_query
     logger.info('setPrice query data: %s', args[0])
+    db = TinyDB('db.json')
+    table = db.table('items')
+    url = args[0]
+    newPrice = args[1]
+    logging.info("{} {}".format(url, newPrice))
+    db.update({'price': newPrice}, ('item' == amazon.getName(url)) & ('user' == update.message.chat_id))
+    logging.info("DONE")
 
     return
 
@@ -62,8 +68,7 @@ def setPrice(bot, update, args):
 def addToDB(item):
     db = TinyDB('db.json')
     table = db.table('items')
-    table.insert({'item': item.getURL(), 'user': item.getUser(),
-                  'price': item.getPrice()})
+    table.insert({'item': item.getURL(), 'user': item.getUser(), 'price': 999999})
     logger.info('DB: %s', table.all())
 
 
