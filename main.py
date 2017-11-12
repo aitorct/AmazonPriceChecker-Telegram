@@ -60,7 +60,8 @@ def setPrice(bot, update, args):
     url = args[0]
     newPrice = args[1]
     logging.info("{} {}".format(url, newPrice))
-    db.update({'price': newPrice}, ('item' == amazon.getName(url)) & ('user' == update.message.chat_id))
+    db.update({'price': newPrice}, ('item' == amazon.getName(url))
+              & ('user' == update.message.chat_id))
     logging.info("DONE")
 
     return
@@ -69,7 +70,8 @@ def setPrice(bot, update, args):
 def addToDB(item):
     db = TinyDB('db.json')
     table = db.table('items')
-    table.insert({'item': item.getURL(), 'user': item.getUser(), 'price': 999999})
+    table.insert(
+        {'item': item.getURL(), 'user': item.getUser(), 'price': 999999})
     logger.info('DB: %s', table.all())
 
 
@@ -107,8 +109,6 @@ def main():
     t1.start()
     t2 = threading.Thread(target=updater.idle)
     t2.start()
-    t1.join()
-    t2.join()
     
 
 
@@ -126,19 +126,23 @@ def sendMessage(bot, update, user, url, price):
 
 def checkItems(bot, update):
     while(True):
-      db = TinyDB('db.json')
-      table = db.table('items')
-      logging.info(table.all())
-      for item in table:
-        logging.info("Testing new item")
-        if(item["price"]!=None):
-          updatedPrice = amazon.checkPrice(item["item"])
-          logging.info("1: {} - 2: {}".format(item["price"], updatedPrice))
-          if(float(item["price"]) > float(updatedPrice.replace(",", "."))):
-              logging.info("Sending message...")
-              sendMessage(bot, update, item["user"], item["item"], updatedPrice)
-              table.remove((where('item') == item["item"]) & (where('user') == item["user"]) & (where('price')==item["price"]))
-      time.sleep(10)
+        db = TinyDB('db.json')
+        table = db.table('items')
+        logging.info(table.all())
+        for item in table:
+            logging.info("Testing new item")
+            if(item["price"] != None):
+                updatedPrice = amazon.checkPrice(item["item"])
+                logging.info(
+                    "1: {} - 2: {}".format(item["price"], updatedPrice))
+                if(float(item["price"]) > float(updatedPrice.replace(",", "."))):
+                    logging.info("Sending message...")
+                    sendMessage(
+                        bot, update, item["user"], item["item"], updatedPrice)
+                    table.remove((where('item') == item["item"]) & (
+                        where('user') == item["user"]) & (where('price') == item["price"]))
+        time.sleep(10)
+
 
 if __name__ == '__main__':
     main()
