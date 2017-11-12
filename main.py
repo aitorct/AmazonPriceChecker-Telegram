@@ -1,8 +1,10 @@
 import logging
-import json
-from tinydb import TinyDB, Query
+import json, time
+import threading
+from tinydb import TinyDB, Query, where
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ConversationHandler
+import telegram as telegram
 import amazon
 import classes
 
@@ -77,6 +79,7 @@ def error(bot, update, error):
 
 def main():
     updater = Updater("KEY")
+    bot = telegram.Bot(token='KEY')
 
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
@@ -93,6 +96,9 @@ def main():
         'setPrice', setPrice, pass_args=True))
     updater.dispatcher.add_error_handler(error)
 
+    t1 = threading.Thread(target=checkItems, args=[bot, updater])
+    t1.start()
+
     updater.start_polling()
     updater.idle()
 
@@ -102,6 +108,28 @@ def jdefault(o):
         return list(o)
     return o.__dict__
 
+
+def sendMessage(bot, update, user, url, price):
+    bot.send_message(user, text="Product '{}' price has dropped to {}€! Buy it here: {}".format(
+        amazon.getName(url).strip(), price, url))
+    return
+
+
+def checkItems(bot, update):
+    while(True):
+      db = TinyDB('db.json')
+      table = db.table('items')
+      logging.info(table.all())
+      for item in table:
+        logging.info("Testing new item")
+        if(item["price"]!=None):
+          updatedPrice = amazon.checkPrice(item["item"])
+          logging.info("1: {} - 2: {}".format(item["price"], updatedPrice))
+          if(float(item["price"]) > float(updatedPrice.replace(",", "."))):
+              logging.info("Sending message...")
+              sendMessage(bot, update, item["user"], item["item"], updatedPrice)
+              table.remove((where('item') == item["item"]) & (where('user') == item["user"]) & (where('price')==item["price"]))
+      time.sleep(10)
 
 if __name__ == '__main__':
     main()
